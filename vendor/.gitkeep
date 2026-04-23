@@ -1,0 +1,8 @@
+# Place pre-downloaded OpenCV zips here for offline Docker builds:
+#   vendor/opencv-4.10.0.zip
+#   vendor/opencv_contrib-4.10.0.zip
+#
+# Build with:
+#   docker build --build-arg OPENCV_SOURCE=/opt/vendor-zip -t ramp-motion:0.1.0 .
+#
+# These files are ignored by git (see .gitignore).

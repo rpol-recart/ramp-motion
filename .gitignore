@@ -11,3 +11,6 @@ data/
 *.so
 .venv/
 .env
+
+# Vendored OpenCV zips (user downloads for offline builds)
+vendor/*.zip

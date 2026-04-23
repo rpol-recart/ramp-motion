@@ -7,9 +7,13 @@ Python pad-probe drives a pure-function state machine that saves a
 calibration frames and a JSON manifest. No object detection, no DB, no
 REST: local volume + JSONL events only.
 
-See [`docs/superpowers/specs/2026-04-23-ramp-motion-pipeline-design.md`](docs/superpowers/specs/2026-04-23-ramp-motion-pipeline-design.md)
-for the full design and [`docs/superpowers/plans/2026-04-23-ramp-motion-pipeline.md`](docs/superpowers/plans/2026-04-23-ramp-motion-pipeline.md)
-for the step-by-step implementation plan.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — **step-by-step install & run guide**
+  (host prerequisites, Docker build with online/offline/air-gapped variants,
+  smoke-tests, troubleshooting).
+- [`docs/superpowers/specs/2026-04-23-ramp-motion-pipeline-design.md`](docs/superpowers/specs/2026-04-23-ramp-motion-pipeline-design.md)
+  — full design spec.
+- [`docs/superpowers/plans/2026-04-23-ramp-motion-pipeline.md`](docs/superpowers/plans/2026-04-23-ramp-motion-pipeline.md)
+  — the step-by-step TDD plan that was used to build it.
 
 ## Requirements
 

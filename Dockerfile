@@ -11,16 +11,50 @@ ARG OPENCV_VERSION=4.10.0
 ARG CUDA_ARCH_BIN=8.9;9.0
 ARG CUDA_ARCH_PTX=9.0
 
+# Source selector for the OpenCV tree:
+#   zip (default)     — download https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.zip
+#                        (no git dependency at build time; works in networks
+#                         that allow HTTPS but block the git smart protocol)
+#   git               — `git clone --depth 1 --branch ${OPENCV_VERSION}`
+#   /opt/vendor-zip   — use a pre-downloaded zip copied into the image
+#                        (fully offline builds). See DEPLOYMENT.md §5.
+ARG OPENCV_SOURCE=zip
+
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      cmake build-essential git pkg-config ca-certificates \
+      cmake build-essential pkg-config ca-certificates \
+      curl unzip git \
       libgtk-3-dev libavcodec-dev libavformat-dev libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy optional pre-downloaded vendor zips for offline builds. These files
+# are ignored if the directory is empty — the build-arg OPENCV_SOURCE still
+# decides which path runs.
+COPY vendor/ /opt/vendor/
+
 WORKDIR /opt
-RUN git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/opencv.git \
- && git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/opencv_contrib.git \
- && mkdir opencv/build
+RUN set -eux; \
+    case "${OPENCV_SOURCE}" in \
+      git) \
+        git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/opencv.git ; \
+        git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/opencv_contrib.git ; \
+        ;; \
+      zip) \
+        curl -fsSL -o opencv.zip          "https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.zip" ; \
+        curl -fsSL -o opencv_contrib.zip  "https://github.com/opencv/opencv_contrib/archive/refs/tags/${OPENCV_VERSION}.zip" ; \
+        unzip -q opencv.zip          && mv "opencv-${OPENCV_VERSION}"         opencv ; \
+        unzip -q opencv_contrib.zip  && mv "opencv_contrib-${OPENCV_VERSION}" opencv_contrib ; \
+        rm -f opencv.zip opencv_contrib.zip ; \
+        ;; \
+      /opt/vendor-zip) \
+        test -f /opt/vendor/opencv-${OPENCV_VERSION}.zip           || { echo "missing vendor/opencv-${OPENCV_VERSION}.zip" ; exit 1; } ; \
+        test -f /opt/vendor/opencv_contrib-${OPENCV_VERSION}.zip   || { echo "missing vendor/opencv_contrib-${OPENCV_VERSION}.zip" ; exit 1; } ; \
+        unzip -q /opt/vendor/opencv-${OPENCV_VERSION}.zip         && mv "opencv-${OPENCV_VERSION}"         opencv ; \
+        unzip -q /opt/vendor/opencv_contrib-${OPENCV_VERSION}.zip && mv "opencv_contrib-${OPENCV_VERSION}" opencv_contrib ; \
+        ;; \
+      *) echo "unknown OPENCV_SOURCE=${OPENCV_SOURCE}"; exit 1 ;; \
+    esac; \
+    mkdir opencv/build
 
 WORKDIR /opt/opencv/build
 RUN cmake .. \
