@@ -77,10 +77,14 @@ RUN cmake .. \
 FROM nvcr.io/nvidia/deepstream:6.3-triton-multiarch AS preproc-build
 COPY --from=opencv-build /opt/opencv-cuda /opt/opencv-cuda
 ENV DEBIAN_FRONTEND=noninteractive
+# Ubuntu 20.04's apt cmake is 3.16; our CMakeLists.txt uses the
+# CUDA_ARCHITECTURES target property introduced in 3.18, so pull a newer
+# cmake wheel via pip.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      cmake build-essential pkg-config \
+      build-essential pkg-config python3-pip \
       libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
       libglib2.0-dev \
+    && pip3 install --no-cache-dir 'cmake>=3.18,<4' \
     && rm -rf /var/lib/apt/lists/*
 ENV CMAKE_PREFIX_PATH=/opt/opencv-cuda
 WORKDIR /build
@@ -119,4 +123,9 @@ COPY ramp_motion/ ramp_motion/
 COPY configs/ configs/
 COPY config.yaml .
 
+# DS 6.3's /opt/nvidia/deepstream/deepstream-6.3/entrypoint.sh does not
+# forward "$@" when it calls nvidia_entrypoint.sh, so our CMD is dropped
+# and the container exits immediately in detached mode. Bypass the broken
+# entrypoint and let Docker exec CMD directly.
+ENTRYPOINT []
 CMD ["python3", "-m", "ramp_motion.app", "--config", "/app/config.yaml"]

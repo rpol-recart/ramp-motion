@@ -20,6 +20,19 @@ def _require(elem, name: str):
     return elem
 
 
+def _set_property_if_exists(elem, prop: str, value) -> None:
+    """Set a GObject property only if it exists on this element.
+    DeepStream 6.3 and 8.0 share most nvurisrcbin properties but
+    `rtsp-reconnect-attempts` was added after 6.3 — silently skip it
+    there rather than raising TypeError.
+    """
+    try:
+        if elem.find_property(prop) is not None:
+            elem.set_property(prop, value)
+    except TypeError:
+        pass
+
+
 def _patch_preprocess_config(cfg: AppConfig, template: Path, output: Path) -> None:
     """Rewrite nvdspreprocess config: keep [property]+[user-configs] from
     the template, then append one [group-N] section per stream with its ROI.
@@ -107,15 +120,20 @@ def build_pipeline(cfg: AppConfig, preprocess_cfg_path: Path) -> Gst.Pipeline:
         src = _require(
             Gst.ElementFactory.make("nvurisrcbin", f"src-{idx}"), "nvurisrcbin")
         src.set_property("uri", s.rtsp_url)
-        src.set_property("rtsp-reconnect-interval",
-                         cfg.pipeline.rtsp_reconnect_interval_sec)
-        src.set_property("rtsp-reconnect-attempts",
-                         cfg.pipeline.rtsp_reconnect_attempts)
+        _set_property_if_exists(src, "rtsp-reconnect-interval",
+                                 cfg.pipeline.rtsp_reconnect_interval_sec)
+        _set_property_if_exists(src, "rtsp-reconnect-attempts",
+                                 cfg.pipeline.rtsp_reconnect_attempts)
         # Force TCP transport — many RTSP servers block UDP from containers.
         # GstRTSPLowerTrans.TCP == 0x4. Harmless for servers that accept UDP too.
-        src.set_property("select-rtp-protocol", 4)
+        _set_property_if_exists(src, "select-rtp-protocol", 4)
         pipeline.add(src)
-        pad = streammux.request_pad_simple(f"sink_{idx}")
+        # GStreamer 1.20+ (DS 8.0): request_pad_simple. GStreamer 1.16 (DS 6.3):
+        # deprecated get_request_pad still exists and is the only option.
+        if hasattr(streammux, "request_pad_simple"):
+            pad = streammux.request_pad_simple(f"sink_{idx}")
+        else:
+            pad = streammux.get_request_pad(f"sink_{idx}")
         src.connect("pad-added", lambda _src, _pad, sink_pad=pad: _pad.link(sink_pad))
 
     return pipeline
