@@ -1,0 +1,8 @@
+# Template values; overridden by ramp_motion.app at startup.
+streammux:
+  width: 1920
+  height: 1080
+  batch_size: 1
+  live_source: 1
+nvdspreprocess:
+  config_file: configs/nvdspreprocess_config.txt

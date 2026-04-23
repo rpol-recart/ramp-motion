@@ -1,0 +1,41 @@
+streams:
+  # Replace with your own RTSP URL and ROI (see tools/calibrate_roi.py).
+  # nvstreammux upscales the input to 1920x1080 by default, so ROI coordinates
+  # are in the 1920x1080 batched-muxer frame.
+  - stream_id: cam-01
+    rtsp_url: rtsp://USER:PASS@CAMERA_HOST:554/stream
+    roi: { x: 320, y: 180, width: 1280, height: 720 }
+
+motion:
+  # Tuned for the public demo RTSP (outdoor Ubiquiti, mostly static scene).
+  # Raise thresh + min_blob_area_px in production to avoid triggering on
+  # wind/shadow noise.
+  thresh: 0.01
+  t_quiet_sec: 5.0
+  t_enter_sec: 0.5
+  min_blob_area_px: 100
+  calib_rate_limit_sec: 1.0
+  t_stale_sec: 10.0
+
+mog2:
+  history: 500
+  var_threshold: 16.0
+  detect_shadows: true
+
+clahe:
+  clip_limit: 2.0
+  tile_grid: [8, 8]
+
+pipeline:
+  target_fps: 5
+  rtsp_reconnect_interval_sec: 5
+  rtsp_reconnect_attempts: -1
+  batch_size_auto: true
+
+storage:
+  root: /data
+  jpeg_quality: 85
+
+logging:
+  level: INFO
+  events_log: /data/events.log
