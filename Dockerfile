@@ -1,15 +1,17 @@
 # syntax=docker/dockerfile:1.6
 
 # =========================================================================
-# Stage 1: build CUDA-enabled OpenCV 4.10 (for cv::cuda::CLAHE and MOG2)
-# Base is DeepStream 8.0 = CUDA 12.8 + Python 3.12; supports Blackwell SM 10/12.
+# Stage 1: build CUDA-enabled OpenCV 4.8 (for cv::cuda::CLAHE and MOG2)
+# Base is DeepStream 6.3 = CUDA 12.1 + Python 3.8 (Ubuntu 20.04 / GLIBC 2.31).
+# Target: production GPUs with compute capability 8.6 (Ampere A100/A40/A6000/
+# RTX 3090). No PTX — the arch list covers the target natively.
 # =========================================================================
-FROM nvcr.io/nvidia/deepstream:8.0-triton-multiarch AS opencv-build
-ARG OPENCV_VERSION=4.10.0
-# SM 8.9 (Ada/L40/4090), 9.0 (Hopper). Blackwell (SM 10.0/12.0) is reached at
-# runtime via PTX JIT from the highest bin arch.
-ARG CUDA_ARCH_BIN=8.9;9.0
-ARG CUDA_ARCH_PTX=9.0
+FROM nvcr.io/nvidia/deepstream:6.3-triton-multiarch AS opencv-build
+ARG OPENCV_VERSION=4.8.0
+# Ampere SM 8.6 production target. Ada 8.9 / Hopper 9.0 also boot this image
+# via backward compat; if you want native SASS on those as well, append them.
+ARG CUDA_ARCH_BIN=8.6
+ARG CUDA_ARCH_PTX=
 
 # Source selector for the OpenCV tree:
 #   zip (default)     — download https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.zip
@@ -27,9 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libgtk-3-dev libavcodec-dev libavformat-dev libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy optional pre-downloaded vendor zips for offline builds. These files
-# are ignored if the directory is empty — the build-arg OPENCV_SOURCE still
-# decides which path runs.
+# Copy optional pre-downloaded vendor zips for offline builds.
 COPY vendor/ /opt/vendor/
 
 WORKDIR /opt
@@ -63,7 +63,7 @@ RUN cmake .. \
     -D OPENCV_EXTRA_MODULES_PATH=/opt/opencv_contrib/modules \
     -D WITH_CUDA=ON \
     -D CUDA_ARCH_BIN=${CUDA_ARCH_BIN} \
-    -D CUDA_ARCH_PTX=${CUDA_ARCH_PTX} \
+    $(test -n "${CUDA_ARCH_PTX}" && echo "-D CUDA_ARCH_PTX=${CUDA_ARCH_PTX}") \
     -D BUILD_opencv_python2=OFF \
     -D BUILD_opencv_python3=OFF \
     -D BUILD_TESTS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_EXAMPLES=OFF \
@@ -74,7 +74,7 @@ RUN cmake .. \
 # =========================================================================
 # Stage 2: build the custom .so
 # =========================================================================
-FROM nvcr.io/nvidia/deepstream:8.0-triton-multiarch AS preproc-build
+FROM nvcr.io/nvidia/deepstream:6.3-triton-multiarch AS preproc-build
 COPY --from=opencv-build /opt/opencv-cuda /opt/opencv-cuda
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -90,9 +90,9 @@ RUN cmake -S preprocess -B preprocess/build \
  && cmake --build preprocess/build -j"$(nproc)"
 
 # =========================================================================
-# Stage 3: runtime — DeepStream 8.0 + pyds 1.2.2 (Python 3.12) + app
+# Stage 3: runtime — DeepStream 6.3 + pyds 1.1.8 (Python 3.8) + app
 # =========================================================================
-FROM nvcr.io/nvidia/deepstream:8.0-triton-multiarch
+FROM nvcr.io/nvidia/deepstream:6.3-triton-multiarch
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -101,17 +101,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libgstrtspserver-1.0-0 libgirepository1.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ARG PYDS_VERSION=1.2.2
-ARG PYDS_PY_TAG=cp312
-RUN pip3 install --no-cache-dir --break-system-packages \
-      "https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/releases/download/v${PYDS_VERSION}/pyds-${PYDS_VERSION}-${PYDS_PY_TAG}-${PYDS_PY_TAG}-linux_x86_64.whl"
+# pyds 1.1.8 — the generic py3-none wheel works with the DS 6.3 Python 3.8.
+ARG PYDS_VERSION=1.1.8
+RUN pip3 install --no-cache-dir \
+      "https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/releases/download/v${PYDS_VERSION}/pyds-${PYDS_VERSION}-py3-none-linux_x86_64.whl"
 
 COPY --from=opencv-build /opt/opencv-cuda /opt/opencv-cuda
 ENV LD_LIBRARY_PATH=/opt/opencv-cuda/lib:/opt/ramp-motion:/opt/nvidia/deepstream/deepstream/lib:$LD_LIBRARY_PATH
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY --from=preproc-build /build/preprocess/build/libramp_motion_preproc.so \
      /opt/ramp-motion/libramp_motion_preproc.so

@@ -1,15 +1,27 @@
 streams:
-  # Replace with your own RTSP URL and ROI (see tools/calibrate_roi.py).
-  # nvstreammux upscales the input to 1920x1080 by default, so ROI coordinates
-  # are in the 1920x1080 batched-muxer frame.
+  # 5 RTSP sources. Replace placeholders with real URLs per deployment
+  # (or copy to config.test.yaml for local experimentation — see .gitignore).
+  # nvstreammux upscales each input to 1920x1080 by default, so the ROI
+  # coordinates below are in 1920x1080 space.
   - stream_id: cam-01
-    rtsp_url: rtsp://USER:PASS@CAMERA_HOST:554/stream
+    rtsp_url: rtsp://USER:PASS@CAMERA_01_HOST:554/stream
+    roi: { x: 320, y: 180, width: 1280, height: 720 }
+  - stream_id: cam-02
+    rtsp_url: rtsp://USER:PASS@CAMERA_02_HOST:554/stream
+    roi: { x: 320, y: 180, width: 1280, height: 720 }
+  - stream_id: cam-03
+    rtsp_url: rtsp://USER:PASS@CAMERA_03_HOST:554/stream
+    roi: { x: 320, y: 180, width: 1280, height: 720 }
+  - stream_id: cam-04
+    rtsp_url: rtsp://USER:PASS@CAMERA_04_HOST:554/stream
+    roi: { x: 320, y: 180, width: 1280, height: 720 }
+  - stream_id: cam-05
+    rtsp_url: rtsp://USER:PASS@CAMERA_05_HOST:554/stream
     roi: { x: 320, y: 180, width: 1280, height: 720 }
 
 motion:
-  # Tuned for the public demo RTSP (outdoor Ubiquiti, mostly static scene).
   # Raise thresh + min_blob_area_px in production to avoid triggering on
-  # wind/shadow noise.
+  # wind/shadow noise on outdoor cameras.
   thresh: 0.01
   t_quiet_sec: 5.0
   t_enter_sec: 0.5

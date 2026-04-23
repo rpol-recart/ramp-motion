@@ -14,3 +14,7 @@ data/
 
 # Vendored OpenCV zips (user downloads for offline builds)
 vendor/*.zip
+
+# Local test/override configs (can contain real RTSP URLs, NEVER commit)
+config.test.yaml
+config.*.local.yaml

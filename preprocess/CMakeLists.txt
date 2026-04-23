@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(CUDAToolkit REQUIRED)
-find_package(OpenCV 4.10 REQUIRED COMPONENTS core imgproc cudaimgproc cudabgsegm cudaarithm)
+find_package(OpenCV 4.8 REQUIRED COMPONENTS core imgproc cudaimgproc cudabgsegm cudaarithm)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GST REQUIRED IMPORTED_TARGET gstreamer-1.0 gobject-2.0 glib-2.0)
 
@@ -46,5 +46,6 @@ target_link_libraries(ramp_motion_preproc PRIVATE
 set_target_properties(ramp_motion_preproc PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
     CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "89;90"
+    # Ampere SM 8.6 — production target for the ds6.3 branch.
+    CUDA_ARCHITECTURES "86"
 )

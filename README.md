@@ -1,11 +1,19 @@
-# ramp-motion
+# ramp-motion  —  `ds6.3` branch
 
-A DeepStream 8.0 (CUDA 12.8) pipeline that watches N RTSP streams, runs
-CLAHE + MOG2 motion detection in a custom `nvdspreprocess` `.so`, and a
-Python pad-probe drives a pure-function state machine that saves a
-`ref` / `query` JPEG pair per motion cycle — plus per-cycle peak
-calibration frames and a JSON manifest. No object detection, no DB, no
-REST: local volume + JSONL events only.
+A DeepStream **6.3** (CUDA 12.1, Python 3.8) build of the ramp-motion
+pipeline, targeted at production GPUs with **compute capability 8.6
+(Ampere — A100, A40, A6000, RTX 3090)** and NVIDIA driver ≥ 525. The
+`main` branch targets DeepStream 8.0 / Blackwell instead.
+
+Same behaviour: watches N RTSP streams, runs CLAHE + MOG2 motion
+detection in a custom `nvdspreprocess` `.so`, and a Python pad-probe
+drives a pure-function state machine that saves a `ref` / `query` JPEG
+pair per motion cycle — plus per-cycle peak calibration frames and a
+JSON manifest. No object detection, no DB, no REST: local volume +
+JSONL events only.
+
+The sample `config.yaml` declares **5 streams** out of the box (a
+common batched-capture configuration).
 
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — **step-by-step install & run guide**
   (host prerequisites, Docker build with online/offline/air-gapped variants,
